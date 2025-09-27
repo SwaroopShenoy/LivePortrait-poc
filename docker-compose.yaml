@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  liveportrait-ultimate:
+    image: pytorch/pytorch:2.1.0-cuda12.1-cudnn8-devel
+    container_name: ultimate_talking_head
+    restart: unless-stopped
+    
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    
+    ports:
+      - "7860:7860"
+    
+    volumes:
+      - ./input:/app/input
+      - ./output:/app/output
+      - ./models:/app/models
+      
+    working_dir: /app
+    
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:1024
+    
+    command: >
+      bash -c "
+      apt update && apt install -y git wget ffmpeg libgl1-mesa-glx libglib2.0-0 &&
+      git clone https://github.com/KwaiVGI/LivePortrait.git . &&
+      pip install -r requirements.txt &&
+      pip install 'huggingface_hub[cli]' insightface opencv-python imageio-ffmpeg &&
+      huggingface-cli download KwaiVGI/LivePortrait --local-dir pretrained_weights &&
+      python app.py --server_name 0.0.0.0 --server_port 7860 --flag_do_torch_compile
+      "
